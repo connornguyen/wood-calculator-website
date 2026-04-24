@@ -206,7 +206,7 @@
 
   <div class="table-header">
     <div>#</div>
-    <div>Phân</div>
+    <div>Dày</div>
     <div>Dài</div>
     <div>Rộng</div>
     <div>KL</div>
@@ -320,7 +320,7 @@ function render() {
     el.className = 'row';
     el.innerHTML = `
       <div class="idx">${i + 1}</div>
-      <input type="text" inputmode="decimal" data-field="multiplier" data-id="${r.id}" placeholder="Phân" value="${escapeAttr(r.multiplier)}" />
+      <input type="text" inputmode="decimal" data-field="multiplier" data-id="${r.id}" placeholder="Dày" value="${escapeAttr(r.multiplier)}" />
       <input type="text" inputmode="decimal" data-field="a" data-id="${r.id}" placeholder="Dài" value="${escapeAttr(r.a)}" />
       <input type="text" inputmode="decimal" data-field="b" data-id="${r.id}" placeholder="Rộng" value="${escapeAttr(r.b)}" />
       <div class="calc">${fmt2(volumeOf(r))}</div>
@@ -367,12 +367,18 @@ rowsEl.addEventListener('click', e => {
 });
 
 document.getElementById('btnAdd').addEventListener('click', () => {
-  rows.push(newRow());
+  const prev = rows[rows.length - 1];
+  const r = newRow();
+  if (prev) {
+    r.multiplier = prev.multiplier;
+    r.c = prev.c;
+  }
+  rows.push(r);
   render();
-  // focus first input of new row
+  // focus Dài field of new row (first empty input after carried-over Dày)
   requestAnimationFrame(() => {
-    const last = rowsEl.querySelector('.row:last-child input');
-    if (last) last.focus();
+    const inputs = rowsEl.querySelectorAll('.row:last-child input');
+    if (inputs.length > 1) inputs[1].focus();
   });
 });
 

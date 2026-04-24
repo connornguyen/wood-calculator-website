@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+<title>S4S Wood Calculator</title>
+<style>
+  :root {
+    --bg: #f2f2f7;
+    --surface: #ffffff;
+    --text: #1c1c1e;
+    --muted: #8e8e93;
+    --border: #d1d1d6;
+    --accent: #007aff;
+    --danger: #ff3b30;
+    --row-alt: #fafafa;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #000;
+      --surface: #1c1c1e;
+      --text: #f2f2f7;
+      --muted: #8e8e93;
+      --border: #38383a;
+      --row-alt: #242426;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; height: 100%; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    display: flex; flex-direction: column;
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+  }
+  header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 14px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    position: sticky; top: 0; z-index: 10;
+  }
+  header h1 {
+    font-size: 17px; margin: 0; font-weight: 600;
+  }
+  .toolbar { display: flex; gap: 6px; }
+  button.icon {
+    background: transparent; border: none; color: var(--accent);
+    font-size: 20px; cursor: pointer; padding: 6px 8px; border-radius: 8px;
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  button.icon:hover { background: rgba(0,122,255,0.1); }
+  button.icon.danger { color: var(--danger); }
+  button.icon.danger:hover { background: rgba(255,59,48,0.1); }
+  button.icon:disabled { opacity: 0.3; cursor: not-allowed; }
+
+  main { flex: 1; overflow-y: auto; padding-bottom: 80px; }
+  .table-header, .row {
+    display: grid;
+    grid-template-columns: 28px 1fr 1fr 1fr 1fr 1fr 1fr 32px;
+    gap: 4px;
+    align-items: center;
+    padding: 6px 8px;
+  }
+  .table-header {
+    position: sticky; top: 0;
+    background: var(--bg);
+    font-size: 11px;
+    color: var(--muted);
+    font-weight: 600;
+    text-transform: uppercase;
+    border-bottom: 1px solid var(--border);
+    z-index: 5;
+  }
+  .table-header > div { text-align: right; }
+  .table-header > div:first-child { text-align: center; }
+  .row {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+  }
+  .row:nth-child(even) { background: var(--row-alt); }
+  .row .idx {
+    text-align: center; color: var(--muted); font-size: 12px;
+    font-variant-numeric: tabular-nums;
+  }
+  .row input {
+    width: 100%;
+    min-width: 0;
+    padding: 7px 6px;
+    font-size: 15px;
+    text-align: right;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--bg);
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+    -moz-appearance: textfield;
+  }
+  .row input::-webkit-outer-spin-button,
+  .row input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  .row input:focus { outline: none; border-color: var(--accent); }
+  .row .calc {
+    text-align: right; font-size: 15px;
+    font-variant-numeric: tabular-nums;
+    padding: 0 4px;
+    color: var(--muted);
+  }
+  .row .calc.strong { color: var(--text); font-weight: 500; }
+  .row .del {
+    background: transparent; border: none; color: var(--danger);
+    cursor: pointer; font-size: 16px; padding: 4px; border-radius: 4px;
+  }
+  .row .del:hover { background: rgba(255,59,48,0.12); }
+
+  footer {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    padding: 12px 16px;
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 10px;
+    backdrop-filter: blur(12px);
+  }
+  .total-label { font-size: 16px; font-weight: 600; }
+  .total-value { font-size: 18px; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+  /* Modal */
+  .modal-backdrop {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.5);
+    display: none;
+    align-items: center; justify-content: center;
+    z-index: 100;
+    padding: 16px;
+  }
+  .modal-backdrop.open { display: flex; }
+  .modal {
+    background: var(--surface); color: var(--text);
+    border-radius: 14px;
+    padding: 20px;
+    max-width: 360px; width: 100%;
+    text-align: center;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.4);
+  }
+  .modal h2 { margin: 0 0 12px 0; font-size: 17px; font-weight: 600; }
+  .modal .sub { color: var(--muted); font-size: 13px; }
+  .modal img { width: 100%; max-width: 260px; height: auto; border-radius: 8px; margin: 8px auto; }
+  .modal .amount { font-size: 24px; font-weight: 700; margin: 8px 0; font-variant-numeric: tabular-nums; }
+  .modal button {
+    width: 100%;
+    padding: 11px;
+    background: var(--accent); color: white;
+    border: none; border-radius: 8px;
+    font-size: 15px; font-weight: 500;
+    cursor: pointer; margin-top: 6px;
+  }
+  .modal button.secondary { background: transparent; color: var(--accent); }
+  .modal button.destructive { background: var(--danger); }
+
+  .account-btn {
+    display: block; width: 100%; text-align: left;
+    background: var(--bg); color: var(--text);
+    padding: 12px; border: 1px solid var(--border); border-radius: 8px;
+    margin-bottom: 6px; cursor: pointer; font-size: 15px;
+  }
+  .account-btn:hover { border-color: var(--accent); }
+  .account-btn .name { font-weight: 500; }
+  .account-btn .desc { color: var(--muted); font-size: 12px; margin-top: 2px; }
+
+  /* Print */
+  @media print {
+    body { background: white; color: black; }
+    header, footer, .del, .table-header .del-col { display: none !important; }
+    main { padding: 0; overflow: visible; }
+    .print-only { display: block !important; }
+    .screen-only { display: none !important; }
+    .row input { border: none; background: transparent; padding: 2px; color: black; }
+    .row { background: white !important; border-bottom: 1px solid #ccc; page-break-inside: avoid; }
+    .row:nth-child(even) { background: #f6f6f6 !important; }
+  }
+  .print-only { display: none; }
+  .print-header { text-align: left; margin-bottom: 12px; }
+  .print-header h2 { margin: 0 0 2px 0; font-size: 20px; }
+  .print-header .date { font-size: 11px; color: #666; }
+  .print-total { text-align: right; font-size: 14px; font-weight: 600; margin-top: 12px; }
+</style>
+</head>
+<body>
+
+<header class="screen-only">
+  <h1>S4S Wood Calculator</h1>
+  <div class="toolbar">
+    <button class="icon" id="btnPrint" title="In" aria-label="In">🖨️</button>
+    <button class="icon danger" id="btnClear" title="Xoá tất cả" aria-label="Xoá tất cả">🗑️</button>
+    <button class="icon" id="btnAdd" title="Thêm" aria-label="Thêm">➕</button>
+  </div>
+</header>
+
+<main>
+  <div class="print-only print-header">
+    <h2>Bảng tính gỗ S4S</h2>
+    <div class="date" id="printDate"></div>
+  </div>
+
+  <div class="table-header">
+    <div>#</div>
+    <div>Phân</div>
+    <div>Dài</div>
+    <div>Rộng</div>
+    <div>KL</div>
+    <div>Giá</div>
+    <div>Tiền</div>
+    <div class="del-col"></div>
+  </div>
+  <div id="rows"></div>
+
+  <div class="print-only print-total">
+    Tổng Tiền: <span id="printTotal"></span>
+  </div>
+</main>
+
+<footer class="screen-only">
+  <span class="total-label">Tổng Tiền</span>
+  <div style="display:flex; align-items:center; gap:10px;">
+    <span class="total-value" id="totalValue">0.00</span>
+    <button class="icon" id="btnQR" title="QR thanh toán" aria-label="QR thanh toán">📱</button>
+  </div>
+</footer>
+
+<!-- Clear confirmation -->
+<div class="modal-backdrop" id="clearModal">
+  <div class="modal">
+    <h2>Xoá tất cả?</h2>
+    <div class="sub">Hành động này không thể hoàn tác.</div>
+    <button class="destructive" id="clearConfirm" style="margin-top:14px;">Xoá tất cả</button>
+    <button class="secondary" id="clearCancel">Huỷ</button>
+  </div>
+</div>
+
+<!-- Account picker -->
+<div class="modal-backdrop" id="accountModal">
+  <div class="modal">
+    <h2>Chọn tài khoản</h2>
+    <div id="accountList"></div>
+    <button class="secondary" id="accountCancel">Huỷ</button>
+  </div>
+</div>
+
+<!-- QR display -->
+<div class="modal-backdrop" id="qrModal">
+  <div class="modal">
+    <h2>Mã QR thanh toán</h2>
+    <div class="sub" id="qrLabel"></div>
+    <div id="qrAccountName" style="font-size:14px; font-weight:500; margin-top:2px;"></div>
+    <img id="qrImage" alt="VietQR" />
+    <div class="amount" id="qrAmount"></div>
+    <button id="qrClose">Đóng</button>
+  </div>
+</div>
+
+<script>
+const STORAGE_KEY = 's4s-wood-calculator-rows';
+
+const ACCOUNTS = [
+  { label: 'BIDV', bankId: 'BIDV', accountNo: '5660290416', accountName: 'NGUYEN DINH THANH CONG' },
+  { label: 'Vietcombank', bankId: 'VCB', accountNo: '0000000000', accountName: 'NGUYEN DINH THANH CONG' },
+];
+
+let rows = loadRows();
+if (rows.length === 0) rows = [newRow()];
+
+function newRow() {
+  return { id: crypto.randomUUID(), multiplier: '', a: '', b: '', c: '' };
+}
+
+function loadRows() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.map(r => ({
+      id: r.id || crypto.randomUUID(),
+      multiplier: r.multiplier ?? '',
+      a: r.a ?? '',
+      b: r.b ?? '',
+      c: r.c ?? '',
+    }));
+  } catch { return []; }
+}
+
+function saveRows() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(rows));
+}
+
+function num(v) {
+  if (v === '' || v == null) return 0;
+  const n = parseFloat(String(v).replace(',', '.'));
+  return isNaN(n) ? 0 : n;
+}
+
+function volumeOf(r) { return num(r.a) * num(r.b) * num(r.multiplier); }
+function resultOf(r) { return volumeOf(r) * num(r.c) * 10; }
+function total() { return rows.reduce((s, r) => s + resultOf(r), 0); }
+
+function fmt2(n) { return n.toFixed(2); }
+function fmtVND(n) {
+  return new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 0 }).format(Math.round(n)) + ' đ';
+}
+
+const rowsEl = document.getElementById('rows');
+const totalEl = document.getElementById('totalValue');
+
+function render() {
+  rowsEl.innerHTML = '';
+  rows.forEach((r, i) => {
+    const el = document.createElement('div');
+    el.className = 'row';
+    el.innerHTML = `
+      <div class="idx">${i + 1}</div>
+      <input type="text" inputmode="decimal" data-field="multiplier" data-id="${r.id}" placeholder="Phân" value="${escapeAttr(r.multiplier)}" />
+      <input type="text" inputmode="decimal" data-field="a" data-id="${r.id}" placeholder="Dài" value="${escapeAttr(r.a)}" />
+      <input type="text" inputmode="decimal" data-field="b" data-id="${r.id}" placeholder="Rộng" value="${escapeAttr(r.b)}" />
+      <div class="calc">${fmt2(volumeOf(r))}</div>
+      <input type="text" inputmode="decimal" data-field="c" data-id="${r.id}" placeholder="Giá" value="${escapeAttr(r.c)}" />
+      <div class="calc strong">${fmt2(resultOf(r))}</div>
+      <button class="del screen-only" data-del="${r.id}" title="Xoá">✕</button>
+    `;
+    rowsEl.appendChild(el);
+  });
+  totalEl.textContent = fmt2(total());
+  document.getElementById('btnQR').disabled = total() <= 0;
+  document.getElementById('printTotal').textContent = fmtVND(total());
+  saveRows();
+}
+
+function escapeAttr(s) { return String(s).replace(/"/g, '&quot;'); }
+
+rowsEl.addEventListener('input', e => {
+  const t = e.target;
+  if (t.dataset.field) {
+    const r = rows.find(x => x.id === t.dataset.id);
+    if (!r) return;
+    // Allow digits, one decimal separator
+    const v = t.value.replace(/[^0-9.,]/g, '');
+    r[t.dataset.field] = v;
+    // Update only affected calc cells without rebuilding (keeps focus)
+    const rowEl = t.closest('.row');
+    const calcs = rowEl.querySelectorAll('.calc');
+    calcs[0].textContent = fmt2(volumeOf(r));
+    calcs[1].textContent = fmt2(resultOf(r));
+    totalEl.textContent = fmt2(total());
+    document.getElementById('btnQR').disabled = total() <= 0;
+    document.getElementById('printTotal').textContent = fmtVND(total());
+    saveRows();
+  }
+});
+
+rowsEl.addEventListener('click', e => {
+  const id = e.target.dataset?.del;
+  if (!id) return;
+  rows = rows.filter(r => r.id !== id);
+  if (rows.length === 0) rows.push(newRow());
+  render();
+});
+
+document.getElementById('btnAdd').addEventListener('click', () => {
+  rows.push(newRow());
+  render();
+  // focus first input of new row
+  requestAnimationFrame(() => {
+    const last = rowsEl.querySelector('.row:last-child input');
+    if (last) last.focus();
+  });
+});
+
+document.getElementById('btnClear').addEventListener('click', () => {
+  document.getElementById('clearModal').classList.add('open');
+});
+document.getElementById('clearCancel').addEventListener('click', () => {
+  document.getElementById('clearModal').classList.remove('open');
+});
+document.getElementById('clearConfirm').addEventListener('click', () => {
+  rows = [newRow()];
+  render();
+  document.getElementById('clearModal').classList.remove('open');
+});
+
+document.getElementById('btnPrint').addEventListener('click', () => {
+  document.getElementById('printDate').textContent = formatPrintDate();
+  document.getElementById('printTotal').textContent = fmtVND(total());
+  window.print();
+});
+
+function formatPrintDate() {
+  const d = new Date();
+  const days = ['Chủ nhật','Thứ hai','Thứ ba','Thứ tư','Thứ năm','Thứ sáu','Thứ bảy'];
+  return `${days[d.getDay()]}, ngày ${d.getDate()} tháng ${d.getMonth()+1} năm ${d.getFullYear()}`;
+}
+
+// QR flow
+document.getElementById('btnQR').addEventListener('click', () => {
+  if (total() <= 0) return;
+  const list = document.getElementById('accountList');
+  list.innerHTML = '';
+  ACCOUNTS.forEach(acc => {
+    const btn = document.createElement('button');
+    btn.className = 'account-btn';
+    btn.innerHTML = `<div class="name">${acc.label}</div><div class="desc">${acc.accountNo} • ${acc.accountName}</div>`;
+    btn.addEventListener('click', () => openQR(acc));
+    list.appendChild(btn);
+  });
+  document.getElementById('accountModal').classList.add('open');
+});
+
+document.getElementById('accountCancel').addEventListener('click', () => {
+  document.getElementById('accountModal').classList.remove('open');
+});
+
+function openQR(acc) {
+  document.getElementById('accountModal').classList.remove('open');
+  const amount = Math.round(total());
+  const url = `https://img.vietqr.io/image/${encodeURIComponent(acc.bankId)}-${encodeURIComponent(acc.accountNo)}-qr_only.png?amount=${amount}&addInfo=${encodeURIComponent('Thanh toan go')}&accountName=${encodeURIComponent(acc.accountName)}`;
+  document.getElementById('qrLabel').textContent = acc.label;
+  document.getElementById('qrAccountName').textContent = acc.accountName;
+  document.getElementById('qrImage').src = url;
+  document.getElementById('qrAmount').textContent = fmtVND(amount);
+  document.getElementById('qrModal').classList.add('open');
+}
+
+document.getElementById('qrClose').addEventListener('click', () => {
+  document.getElementById('qrModal').classList.remove('open');
+});
+
+// Close modal on backdrop click
+document.querySelectorAll('.modal-backdrop').forEach(m => {
+  m.addEventListener('click', e => {
+    if (e.target === m) m.classList.remove('open');
+  });
+});
+
+render();
+</script>
+</body>
+</html>

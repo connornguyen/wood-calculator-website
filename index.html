@@ -4,6 +4,11 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
 <title>S4S Wood Calculator</title>
+<link rel="manifest" href="manifest.json" />
+<meta name="theme-color" content="#007aff" />
+<link rel="apple-touch-icon" href="icon.svg" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-title" content="S4S Wood" />
 <style>
   :root {
     --bg: #f2f2f7;
@@ -59,7 +64,7 @@
   main { flex: 1; overflow-y: auto; padding-bottom: 80px; }
   .table-header, .row {
     display: grid;
-    grid-template-columns: 28px 1fr 1fr 1fr 1fr 1fr 1fr 32px;
+    grid-template-columns: 26px 0.9fr 0.9fr 0.9fr 0.9fr 0.9fr 0.55fr 1.1fr 28px;
     gap: 4px;
     align-items: center;
     padding: 6px 8px;
@@ -207,10 +212,11 @@
   <div class="table-header">
     <div>#</div>
     <div>Dày</div>
-    <div>Dài</div>
     <div>Rộng</div>
+    <div>Dài</div>
     <div>KL</div>
     <div>Giá</div>
+    <div>SL</div>
     <div>Tiền</div>
     <div class="del-col"></div>
   </div>
@@ -273,7 +279,7 @@ let rows = loadRows();
 if (rows.length === 0) rows = [newRow()];
 
 function newRow() {
-  return { id: crypto.randomUUID(), multiplier: '', a: '', b: '', c: '' };
+  return { id: crypto.randomUUID(), multiplier: '', a: '', b: '', c: '', qty: '' };
 }
 
 function loadRows() {
@@ -288,6 +294,7 @@ function loadRows() {
       a: r.a ?? '',
       b: r.b ?? '',
       c: r.c ?? '',
+      qty: r.qty ?? '',
     }));
   } catch { return []; }
 }
@@ -302,11 +309,18 @@ function num(v) {
   return isNaN(n) ? 0 : n;
 }
 
+function qtyOf(r) {
+  const n = num(r.qty);
+  return n > 0 ? n : 1;
+}
 function volumeOf(r) { return num(r.a) * num(r.b) * num(r.multiplier); }
-function resultOf(r) { return volumeOf(r) * num(r.c) * 10; }
+function resultOf(r) { return volumeOf(r) * num(r.c) * 10 * qtyOf(r); }
 function total() { return rows.reduce((s, r) => s + resultOf(r), 0); }
 
 function fmt2(n) { return n.toFixed(2); }
+function fmtMoney(n) {
+  return new Intl.NumberFormat('vi-VN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
+}
 function fmtVND(n) {
   return new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 0 }).format(Math.round(n)) + ' đ';
 }
@@ -322,16 +336,17 @@ function render() {
     el.innerHTML = `
       <div class="idx">${i + 1}</div>
       <input type="text" inputmode="decimal" data-field="multiplier" data-id="${r.id}" placeholder="Dày" value="${escapeAttr(r.multiplier)}" />
-      <input type="text" inputmode="decimal" data-field="a" data-id="${r.id}" placeholder="Dài" value="${escapeAttr(r.a)}" />
       <input type="text" inputmode="decimal" data-field="b" data-id="${r.id}" placeholder="Rộng" value="${escapeAttr(r.b)}" />
+      <input type="text" inputmode="decimal" data-field="a" data-id="${r.id}" placeholder="Dài" value="${escapeAttr(r.a)}" />
       <div class="calc">${fmt2(volumeOf(r))}</div>
       <input type="text" inputmode="decimal" data-field="c" data-id="${r.id}" placeholder="Giá" value="${escapeAttr(r.c)}" />
-      <div class="calc strong">${fmt2(resultOf(r))}</div>
+      <input type="text" inputmode="numeric" data-field="qty" data-id="${r.id}" placeholder="1" value="${escapeAttr(r.qty)}" />
+      <div class="calc strong">${fmtMoney(resultOf(r))}</div>
       <button class="del screen-only" data-del="${r.id}" title="Xoá">✕</button>
     `;
     rowsEl.appendChild(el);
   });
-  totalEl.textContent = fmt2(total());
+  totalEl.textContent = fmtMoney(total());
   document.getElementById('btnQR').disabled = total() <= 0;
   document.getElementById('printTotal').textContent = fmtVND(total());
   saveRows();
@@ -351,8 +366,8 @@ rowsEl.addEventListener('input', e => {
     const rowEl = t.closest('.row');
     const calcs = rowEl.querySelectorAll('.calc');
     calcs[0].textContent = fmt2(volumeOf(r));
-    calcs[1].textContent = fmt2(resultOf(r));
-    totalEl.textContent = fmt2(total());
+    calcs[1].textContent = fmtMoney(resultOf(r));
+    totalEl.textContent = fmtMoney(total());
     document.getElementById('btnQR').disabled = total() <= 0;
     document.getElementById('printTotal').textContent = fmtVND(total());
     saveRows();
@@ -376,7 +391,7 @@ document.getElementById('btnAdd').addEventListener('click', () => {
   }
   rows.push(r);
   render();
-  // focus Dài field of new row (first empty input after carried-over Dày)
+  // focus Rộng (2nd input) of new row
   requestAnimationFrame(() => {
     const inputs = rowsEl.querySelectorAll('.row:last-child input');
     if (inputs.length > 1) inputs[1].focus();
@@ -449,6 +464,13 @@ document.querySelectorAll('.modal-backdrop').forEach(m => {
 });
 
 render();
+
+// PWA: register service worker
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(err => console.warn('SW registration failed:', err));
+  });
+}
 </script>
 </body>
 </html>

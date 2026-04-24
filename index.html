@@ -429,7 +429,7 @@ document.getElementById('accountCancel').addEventListener('click', () => {
 function openQR(acc) {
   document.getElementById('accountModal').classList.remove('open');
   const amount = Math.round(total());
-  const url = `https://img.vietqr.io/image/${encodeURIComponent(acc.bankId)}-${encodeURIComponent(acc.accountNo)}-qr_only.png?amount=${amount}&addInfo=${encodeURIComponent('Thanh toan go')}&accountName=${encodeURIComponent(acc.accountName)}`;
+  const url = `https://img.vietqr.io/image/${encodeURIComponent(acc.bankId)}-${encodeURIComponent(acc.accountNo)}-qr_only.png?amount=${amount}&accountName=${encodeURIComponent(acc.accountName)}`;
   document.getElementById('qrLabel').textContent = acc.label;
   document.getElementById('qrAccountName').textContent = acc.accountName;
   document.getElementById('qrImage').src = url;

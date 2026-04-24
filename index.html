@@ -64,7 +64,7 @@
   main { flex: 1; overflow-y: auto; padding-bottom: 80px; }
   .table-header, .row {
     display: grid;
-    grid-template-columns: 26px 0.9fr 0.9fr 0.9fr 0.9fr 0.9fr 0.55fr 1.1fr 28px;
+    grid-template-columns: 28px 1fr 1fr 1fr 1fr 1fr 1fr 32px;
     gap: 4px;
     align-items: center;
     padding: 6px 8px;
@@ -216,7 +216,6 @@
     <div>Dài</div>
     <div>KL</div>
     <div>Giá</div>
-    <div>SL</div>
     <div>Tiền</div>
     <div class="del-col"></div>
   </div>
@@ -279,7 +278,7 @@ let rows = loadRows();
 if (rows.length === 0) rows = [newRow()];
 
 function newRow() {
-  return { id: crypto.randomUUID(), multiplier: '', a: '', b: '', c: '', qty: '' };
+  return { id: crypto.randomUUID(), multiplier: '', a: '', b: '', c: '' };
 }
 
 function loadRows() {
@@ -294,7 +293,6 @@ function loadRows() {
       a: r.a ?? '',
       b: r.b ?? '',
       c: r.c ?? '',
-      qty: r.qty ?? '',
     }));
   } catch { return []; }
 }
@@ -309,12 +307,8 @@ function num(v) {
   return isNaN(n) ? 0 : n;
 }
 
-function qtyOf(r) {
-  const n = num(r.qty);
-  return n > 0 ? n : 1;
-}
 function volumeOf(r) { return num(r.a) * num(r.b) * num(r.multiplier); }
-function resultOf(r) { return volumeOf(r) * num(r.c) * 10 * qtyOf(r); }
+function resultOf(r) { return volumeOf(r) * num(r.c) * 10; }
 function total() { return rows.reduce((s, r) => s + resultOf(r), 0); }
 
 function fmt2(n) { return n.toFixed(2); }
@@ -340,7 +334,6 @@ function render() {
       <input type="text" inputmode="decimal" data-field="a" data-id="${r.id}" placeholder="Dài" value="${escapeAttr(r.a)}" />
       <div class="calc">${fmt2(volumeOf(r))}</div>
       <input type="text" inputmode="decimal" data-field="c" data-id="${r.id}" placeholder="Giá" value="${escapeAttr(r.c)}" />
-      <input type="text" inputmode="numeric" data-field="qty" data-id="${r.id}" placeholder="1" value="${escapeAttr(r.qty)}" />
       <div class="calc strong">${fmtMoney(resultOf(r))}</div>
       <button class="del screen-only" data-del="${r.id}" title="Xoá">✕</button>
     `;

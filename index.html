@@ -364,6 +364,17 @@ rowsEl.addEventListener('input', e => {
     document.getElementById('btnQR').disabled = total() <= 0;
     document.getElementById('printTotal').textContent = fmtVND(total());
     saveRows();
+
+    // Auto-advance: when 2 digits typed, jump to next input
+    const digitCount = v.replace(/[^0-9]/g, '').length;
+    if (digitCount >= 2) {
+      const inputs = Array.from(rowsEl.querySelectorAll('input'));
+      const idx = inputs.indexOf(t);
+      if (idx >= 0 && idx < inputs.length - 1) {
+        inputs[idx + 1].focus();
+        inputs[idx + 1].select?.();
+      }
+    }
   }
 });
 

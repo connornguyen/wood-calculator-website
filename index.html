@@ -368,11 +368,24 @@ rowsEl.addEventListener('input', e => {
     // Auto-advance: when 2 digits typed, jump to next input
     const digitCount = v.replace(/[^0-9]/g, '').length;
     if (digitCount >= 2) {
-      const inputs = Array.from(rowsEl.querySelectorAll('input'));
-      const idx = inputs.indexOf(t);
-      if (idx >= 0 && idx < inputs.length - 1) {
-        inputs[idx + 1].focus();
-        inputs[idx + 1].select?.();
+      if (t.dataset.field === 'c') {
+        // Giá is the last field — auto-create next row and focus its first input
+        const prev = rows[rows.length - 1];
+        const newR = newRow();
+        if (prev) { newR.multiplier = prev.multiplier; newR.c = prev.c; }
+        rows.push(newR);
+        render();
+        requestAnimationFrame(() => {
+          const inputs = rowsEl.querySelectorAll('.row:last-child input');
+          if (inputs.length > 1) inputs[1].focus(); // skip Dày (carried over), land on Rộng
+        });
+      } else {
+        const inputs = Array.from(rowsEl.querySelectorAll('input'));
+        const idx = inputs.indexOf(t);
+        if (idx >= 0 && idx < inputs.length - 1) {
+          inputs[idx + 1].focus();
+          inputs[idx + 1].select?.();
+        }
       }
     }
   }

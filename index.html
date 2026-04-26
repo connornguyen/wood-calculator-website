@@ -164,6 +164,32 @@
   .modal button.secondary { background: transparent; color: var(--accent); }
   .modal button.destructive { background: var(--danger); }
 
+  /* Settings price presets */
+  .preset-section {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px;
+    margin-bottom: 10px;
+    text-align: left;
+  }
+  .preset-section .preset-title {
+    font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 8px;
+  }
+  .preset-row {
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    margin-top: 6px;
+  }
+  .preset-row label { font-size: 13px; color: var(--muted); flex-shrink: 0; }
+  .preset-row input {
+    flex: 1; padding: 7px 8px; border: 1px solid var(--border); border-radius: 7px;
+    background: var(--surface); color: var(--text); font-size: 15px; text-align: right;
+    -moz-appearance: textfield;
+  }
+  .preset-row input::-webkit-outer-spin-button,
+  .preset-row input::-webkit-inner-spin-button { -webkit-appearance: none; }
+  .preset-row input:focus { outline: none; border-color: var(--accent); }
+
   .account-btn {
     display: block; width: 100%; text-align: left;
     background: var(--bg); color: var(--text);
@@ -197,6 +223,7 @@
 <header class="screen-only">
   <h1>S4S Wood Calculator</h1>
   <div class="toolbar">
+    <button class="icon" id="btnSettings" title="Cài đặt giá" aria-label="Cài đặt giá">⚙️</button>
     <button class="icon" id="btnPrint" title="In" aria-label="In">🖨️</button>
     <button class="icon danger" id="btnClear" title="Xoá tất cả" aria-label="Xoá tất cả">🗑️</button>
     <button class="icon" id="btnAdd" title="Thêm" aria-label="Thêm">➕</button>
@@ -241,6 +268,36 @@
     <div class="sub">Hành động này không thể hoàn tác.</div>
     <button class="destructive" id="clearConfirm" style="margin-top:14px;">Xoá tất cả</button>
     <button class="secondary" id="clearCancel">Huỷ</button>
+  </div>
+</div>
+
+<!-- Settings: price presets -->
+<div class="modal-backdrop" id="settingsModal">
+  <div class="modal">
+    <h2>Cài đặt giá</h2>
+
+    <div class="preset-section">
+      <div class="preset-title">Dày &gt; 2.5</div>
+      <div class="preset-row">
+        <label>Giá</label>
+        <input type="text" inputmode="numeric" id="ps-thick-gt" placeholder="VD: 1200000" />
+      </div>
+    </div>
+
+    <div class="preset-section">
+      <div class="preset-title">Dày = 2</div>
+      <div class="preset-row">
+        <label>Rộng &gt; 30 → Giá</label>
+        <input type="text" inputmode="numeric" id="ps-2-wide" placeholder="VD: 950000" />
+      </div>
+      <div class="preset-row">
+        <label>Rộng ≤ 30 → Giá</label>
+        <input type="text" inputmode="numeric" id="ps-2-narrow" placeholder="VD: 800000" />
+      </div>
+    </div>
+
+    <button id="settingsSave">Lưu</button>
+    <button class="secondary" id="settingsCancel">Huỷ</button>
   </div>
 </div>
 
@@ -301,6 +358,31 @@ function saveRows() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(rows));
 }
 
+// ── Price presets ─────────────────────────────────────────────────────────────
+const PRESETS_KEY = 's4s-price-presets';
+
+function loadPresets() {
+  try { return JSON.parse(localStorage.getItem(PRESETS_KEY)) || {}; }
+  catch { return {}; }
+}
+function savePresets(p) {
+  localStorage.setItem(PRESETS_KEY, JSON.stringify(p));
+}
+
+// Returns preset Giá string if a rule matches, else null
+function matchPreset(r) {
+  const p = loadPresets();
+  const thick = num(r.multiplier);
+  const wide  = num(r.b);
+  if (thick <= 0) return null;               // Dày not filled yet
+  if (thick > 2.5 && p.thickGt)             return p.thickGt;
+  if (Math.abs(thick - 2) < 0.26) {         // "Dày = 2" zone (1.75–2.25)
+    if (wide > 30  && p.thick2Wide)         return p.thick2Wide;
+    if (wide > 0   && p.thick2Narrow)       return p.thick2Narrow;
+  }
+  return null;
+}
+
 function num(v) {
   if (v === '' || v == null) return 0;
   const n = parseFloat(String(v).replace(',', '.'));
@@ -355,8 +437,19 @@ rowsEl.addEventListener('input', e => {
     // Allow digits, one decimal separator
     const v = t.value.replace(/[^0-9.,]/g, '');
     r[t.dataset.field] = v;
+
     // Update only affected calc cells without rebuilding (keeps focus)
     const rowEl = t.closest('.row');
+
+    // Auto-fill Giá from preset when Dày or Rộng changes
+    if (t.dataset.field === 'multiplier' || t.dataset.field === 'b') {
+      const preset = matchPreset(r);
+      if (preset !== null) {
+        r.c = preset;
+        const giaInput = rowEl.querySelector('input[data-field="c"]');
+        if (giaInput) giaInput.value = preset;
+      }
+    }
     const calcs = rowEl.querySelectorAll('.calc');
     calcs[0].textContent = fmt2(volumeOf(r));
     calcs[1].textContent = fmtMoney(resultOf(r));
@@ -413,6 +506,26 @@ document.getElementById('btnAdd').addEventListener('click', () => {
     const inputs = rowsEl.querySelectorAll('.row:last-child input');
     if (inputs.length > 1) inputs[1].focus();
   });
+});
+
+// ── Settings modal ───────────────────────────────────────────────────────────
+document.getElementById('btnSettings').addEventListener('click', () => {
+  const p = loadPresets();
+  document.getElementById('ps-thick-gt').value   = p.thickGt      || '';
+  document.getElementById('ps-2-wide').value      = p.thick2Wide   || '';
+  document.getElementById('ps-2-narrow').value    = p.thick2Narrow || '';
+  document.getElementById('settingsModal').classList.add('open');
+});
+document.getElementById('settingsCancel').addEventListener('click', () => {
+  document.getElementById('settingsModal').classList.remove('open');
+});
+document.getElementById('settingsSave').addEventListener('click', () => {
+  savePresets({
+    thickGt:      document.getElementById('ps-thick-gt').value.trim(),
+    thick2Wide:   document.getElementById('ps-2-wide').value.trim(),
+    thick2Narrow: document.getElementById('ps-2-narrow').value.trim(),
+  });
+  document.getElementById('settingsModal').classList.remove('open');
 });
 
 document.getElementById('btnClear').addEventListener('click', () => {

@@ -277,22 +277,30 @@
     <h2>Cài đặt giá</h2>
 
     <div class="preset-section">
-      <div class="preset-title">Dày &gt; 2.5</div>
+      <div class="preset-title">Dày ≥ 2.5</div>
       <div class="preset-row">
         <label>Giá</label>
-        <input type="text" inputmode="numeric" id="ps-thick-gt" placeholder="VD: 1200000" />
+        <input type="text" inputmode="numeric" id="ps-thick-gte" placeholder="VD: 1200000" />
       </div>
     </div>
 
     <div class="preset-section">
-      <div class="preset-title">Dày = 2</div>
+      <div class="preset-title">Dày &lt; 2.5</div>
       <div class="preset-row">
-        <label>Rộng &gt; 30 → Giá</label>
-        <input type="text" inputmode="numeric" id="ps-2-wide" placeholder="VD: 950000" />
+        <label>Rộng &lt; 20 → Giá</label>
+        <input type="text" inputmode="numeric" id="ps-lt20" placeholder="VD: 700000" />
       </div>
       <div class="preset-row">
-        <label>Rộng ≤ 30 → Giá</label>
-        <input type="text" inputmode="numeric" id="ps-2-narrow" placeholder="VD: 800000" />
+        <label>Rộng 20–29 → Giá</label>
+        <input type="text" inputmode="numeric" id="ps-20to29" placeholder="VD: 800000" />
+      </div>
+      <div class="preset-row">
+        <label>Rộng 30–34 → Giá</label>
+        <input type="text" inputmode="numeric" id="ps-30to34" placeholder="VD: 950000" />
+      </div>
+      <div class="preset-row">
+        <label>Rộng ≥ 35 → Giá</label>
+        <input type="text" inputmode="numeric" id="ps-gte35" placeholder="VD: 1100000" />
       </div>
     </div>
 
@@ -371,15 +379,20 @@ function savePresets(p) {
 
 // Returns preset Giá string if a rule matches, else null
 function matchPreset(r) {
-  const p = loadPresets();
+  const p     = loadPresets();
   const thick = num(r.multiplier);
   const wide  = num(r.b);
-  if (thick <= 0) return null;               // Dày not filled yet
-  if (thick > 2.5 && p.thickGt)             return p.thickGt;
-  if (Math.abs(thick - 2) < 0.26) {         // "Dày = 2" zone (1.75–2.25)
-    if (wide > 30  && p.thick2Wide)         return p.thick2Wide;
-    if (wide > 0   && p.thick2Narrow)       return p.thick2Narrow;
-  }
+  if (thick <= 0) return null;           // Dày not filled yet
+
+  // Section 1: Dày ≥ 2.5
+  if (thick >= 2.5) return p.thickGte || null;
+
+  // Section 2: Dày < 2.5 — match by Rộng range
+  if (wide <= 0) return null;            // Rộng not filled yet
+  if (wide < 20)              return p.lt20    || null;
+  if (wide >= 20 && wide <= 29) return p.r20to29 || null;
+  if (wide >= 30 && wide <= 34) return p.r30to34 || null;
+  if (wide >= 35)             return p.gte35  || null;
   return null;
 }
 
@@ -511,9 +524,11 @@ document.getElementById('btnAdd').addEventListener('click', () => {
 // ── Settings modal ───────────────────────────────────────────────────────────
 document.getElementById('btnSettings').addEventListener('click', () => {
   const p = loadPresets();
-  document.getElementById('ps-thick-gt').value   = p.thickGt      || '';
-  document.getElementById('ps-2-wide').value      = p.thick2Wide   || '';
-  document.getElementById('ps-2-narrow').value    = p.thick2Narrow || '';
+  document.getElementById('ps-thick-gte').value = p.thickGte  || '';
+  document.getElementById('ps-lt20').value       = p.lt20      || '';
+  document.getElementById('ps-20to29').value     = p.r20to29   || '';
+  document.getElementById('ps-30to34').value     = p.r30to34   || '';
+  document.getElementById('ps-gte35').value      = p.gte35     || '';
   document.getElementById('settingsModal').classList.add('open');
 });
 document.getElementById('settingsCancel').addEventListener('click', () => {
@@ -521,9 +536,11 @@ document.getElementById('settingsCancel').addEventListener('click', () => {
 });
 document.getElementById('settingsSave').addEventListener('click', () => {
   savePresets({
-    thickGt:      document.getElementById('ps-thick-gt').value.trim(),
-    thick2Wide:   document.getElementById('ps-2-wide').value.trim(),
-    thick2Narrow: document.getElementById('ps-2-narrow').value.trim(),
+    thickGte: document.getElementById('ps-thick-gte').value.trim(),
+    lt20:     document.getElementById('ps-lt20').value.trim(),
+    r20to29:  document.getElementById('ps-20to29').value.trim(),
+    r30to34:  document.getElementById('ps-30to34').value.trim(),
+    gte35:    document.getElementById('ps-gte35').value.trim(),
   });
   document.getElementById('settingsModal').classList.remove('open');
 });

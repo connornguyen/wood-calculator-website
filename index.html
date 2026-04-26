@@ -94,7 +94,7 @@
     width: 100%;
     min-width: 0;
     padding: 7px 6px;
-    font-size: 15px;
+    font-size: 18px;
     text-align: right;
     border: 1px solid var(--border);
     border-radius: 6px;
@@ -107,7 +107,7 @@
   .row input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
   .row input:focus { outline: none; border-color: var(--accent); }
   .row .calc {
-    text-align: right; font-size: 15px;
+    text-align: right; font-size: 18px;
     font-variant-numeric: tabular-nums;
     padding: 0 4px;
     color: var(--muted);
@@ -437,9 +437,9 @@ function render() {
       + `<input type="text" inputmode="decimal" data-field="multiplier" data-id="${r.id}" placeholder="Dày" value="${escapeAttr(r.multiplier)}" />`
       + `<input type="text" inputmode="decimal" data-field="b" data-id="${r.id}" placeholder="Rộng" value="${escapeAttr(r.b)}" />`
       + `<input type="text" inputmode="decimal" data-field="a" data-id="${r.id}" placeholder="Dài" value="${escapeAttr(r.a)}" />`
-      + `<div class="calc">${fmt2(vol)}</div>`
+      + `<div class="calc">${VND_FMT.format(Math.round(vol))}</div>`
       + `<input type="text" inputmode="decimal" data-field="c" data-id="${r.id}" placeholder="Giá" value="${escapeAttr(r.c)}" />`
-      + `<div class="calc strong">${fmtMoney(vol * num(r.c) * 10)}</div>`
+      + `<div class="calc strong">${VND_FMT.format(Math.round(vol * num(r.c) * 10))}</div>`
       + `<button class="del" data-del="${r.id}" title="Xoá">✕</button>`
       + `</div>`;
   }).join('');
@@ -476,8 +476,8 @@ rowsEl.addEventListener('input', e => {
   // Update calc cells once (volume reused for both)
   const vol = volumeOf(r);
   const calcs = rowEl.querySelectorAll('.calc');
-  calcs[0].textContent = fmt2(vol);
-  calcs[1].textContent = fmtMoney(vol * num(r.c) * 10);
+  calcs[0].textContent = VND_FMT.format(Math.round(vol));
+  calcs[1].textContent = VND_FMT.format(Math.round(vol * num(r.c) * 10));
   refreshTotal();
   saveRows();
 

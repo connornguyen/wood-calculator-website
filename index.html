@@ -373,27 +373,27 @@ function loadPresets() {
   try { return JSON.parse(localStorage.getItem(PRESETS_KEY)) || {}; }
   catch { return {}; }
 }
+let presets = loadPresets();              // cached in memory; refreshed on save
 function savePresets(p) {
+  presets = p;
   localStorage.setItem(PRESETS_KEY, JSON.stringify(p));
 }
 
 // Returns preset Giá string if a rule matches, else null
 function matchPreset(r) {
-  const p     = loadPresets();
   const thick = num(r.multiplier);
-  const wide  = num(r.b);
-  if (thick <= 0) return null;           // Dày not filled yet
+  if (thick <= 0) return null;            // Dày not filled yet
 
   // Section 1: Dày ≥ 2.5
-  if (thick >= 2.5) return p.thickGte || null;
+  if (thick >= 2.5) return presets.thickGte || null;
 
   // Section 2: Dày < 2.5 — match by Rộng range
-  if (wide <= 0) return null;            // Rộng not filled yet
-  if (wide < 20)              return p.lt20    || null;
-  if (wide >= 20 && wide <= 29) return p.r20to29 || null;
-  if (wide >= 30 && wide <= 34) return p.r30to34 || null;
-  if (wide >= 35)             return p.gte35  || null;
-  return null;
+  const wide = num(r.b);
+  if (wide <= 0)  return null;            // Rộng not filled yet
+  if (wide < 20)  return presets.lt20    || null;
+  if (wide <= 29) return presets.r20to29 || null;
+  if (wide <= 34) return presets.r30to34 || null;
+  return presets.gte35 || null;           // wide >= 35
 }
 
 function num(v) {
@@ -406,37 +406,44 @@ function volumeOf(r) { return num(r.a) * num(r.b) * num(r.multiplier); }
 function resultOf(r) { return volumeOf(r) * num(r.c) * 10; }
 function total() { return rows.reduce((s, r) => s + resultOf(r), 0); }
 
-function fmt2(n) { return n.toFixed(2); }
-function fmtMoney(n) {
-  return new Intl.NumberFormat('vi-VN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
-}
-function fmtVND(n) {
-  return new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 0 }).format(Math.round(n)) + ' đ';
-}
+// Cached formatters (constructing Intl.NumberFormat is expensive)
+const MONEY_FMT = new Intl.NumberFormat('vi-VN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const VND_FMT   = new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 0 });
 
-const rowsEl = document.getElementById('rows');
-const totalEl = document.getElementById('totalValue');
+function fmt2(n)     { return n.toFixed(2); }
+function fmtMoney(n) { return MONEY_FMT.format(n); }
+function fmtVND(n)   { return VND_FMT.format(Math.round(n)) + ' đ'; }
+
+// Cached DOM references
+const rowsEl       = document.getElementById('rows');
+const totalEl      = document.getElementById('totalValue');
+const btnQREl      = document.getElementById('btnQR');
+const printTotalEl = document.getElementById('printTotal');
+
+// Compute total once and update all dependent UI
+function refreshTotal() {
+  const t = total();
+  totalEl.textContent      = fmtMoney(t);
+  btnQREl.disabled         = t <= 0;
+  printTotalEl.textContent = fmtVND(t);
+}
 
 function render() {
-  rowsEl.innerHTML = '';
-  rows.forEach((r, i) => {
-    const el = document.createElement('div');
-    el.className = 'row';
-    el.innerHTML = `
-      <div class="idx">${i + 1}</div>
-      <input type="text" inputmode="decimal" data-field="multiplier" data-id="${r.id}" placeholder="Dày" value="${escapeAttr(r.multiplier)}" />
-      <input type="text" inputmode="decimal" data-field="b" data-id="${r.id}" placeholder="Rộng" value="${escapeAttr(r.b)}" />
-      <input type="text" inputmode="decimal" data-field="a" data-id="${r.id}" placeholder="Dài" value="${escapeAttr(r.a)}" />
-      <div class="calc">${fmt2(volumeOf(r))}</div>
-      <input type="text" inputmode="decimal" data-field="c" data-id="${r.id}" placeholder="Giá" value="${escapeAttr(r.c)}" />
-      <div class="calc strong">${fmtMoney(resultOf(r))}</div>
-      <button class="del screen-only" data-del="${r.id}" title="Xoá">✕</button>
-    `;
-    rowsEl.appendChild(el);
-  });
-  totalEl.textContent = fmtMoney(total());
-  document.getElementById('btnQR').disabled = total() <= 0;
-  document.getElementById('printTotal').textContent = fmtVND(total());
+  // Build entire rows HTML in a single string and assign once
+  rowsEl.innerHTML = rows.map((r, i) => {
+    const vol = volumeOf(r);
+    return `<div class="row">`
+      + `<div class="idx">${i + 1}</div>`
+      + `<input type="text" inputmode="decimal" data-field="multiplier" data-id="${r.id}" placeholder="Dày" value="${escapeAttr(r.multiplier)}" />`
+      + `<input type="text" inputmode="decimal" data-field="b" data-id="${r.id}" placeholder="Rộng" value="${escapeAttr(r.b)}" />`
+      + `<input type="text" inputmode="decimal" data-field="a" data-id="${r.id}" placeholder="Dài" value="${escapeAttr(r.a)}" />`
+      + `<div class="calc">${fmt2(vol)}</div>`
+      + `<input type="text" inputmode="decimal" data-field="c" data-id="${r.id}" placeholder="Giá" value="${escapeAttr(r.c)}" />`
+      + `<div class="calc strong">${fmtMoney(vol * num(r.c) * 10)}</div>`
+      + `<button class="del" data-del="${r.id}" title="Xoá">✕</button>`
+      + `</div>`;
+  }).join('');
+  refreshTotal();
   saveRows();
 }
 
@@ -444,54 +451,61 @@ function escapeAttr(s) { return String(s).replace(/"/g, '&quot;'); }
 
 rowsEl.addEventListener('input', e => {
   const t = e.target;
-  if (t.dataset.field) {
-    const r = rows.find(x => x.id === t.dataset.id);
-    if (!r) return;
-    // Allow digits, one decimal separator
-    const v = t.value.replace(/[^0-9.,]/g, '');
-    r[t.dataset.field] = v;
+  const field = t.dataset.field;
+  if (!field) return;
 
-    // Update only affected calc cells without rebuilding (keeps focus)
-    const rowEl = t.closest('.row');
+  const r = rows.find(x => x.id === t.dataset.id);
+  if (!r) return;
 
-    // Auto-fill Giá from preset when Dày or Rộng changes
-    if (t.dataset.field === 'multiplier' || t.dataset.field === 'b') {
-      const preset = matchPreset(r);
-      if (preset !== null) {
-        r.c = preset;
-        const giaInput = rowEl.querySelector('input[data-field="c"]');
-        if (giaInput) giaInput.value = preset;
-      }
+  // Allow digits, one decimal separator
+  const v = t.value.replace(/[^0-9.,]/g, '');
+  r[field] = v;
+
+  const rowEl = t.closest('.row');
+
+  // Auto-fill Giá from preset when Dày or Rộng changes
+  if (field === 'multiplier' || field === 'b') {
+    const preset = matchPreset(r);
+    if (preset !== null) {
+      r.c = preset;
+      const giaInput = rowEl.querySelector('input[data-field="c"]');
+      if (giaInput) giaInput.value = preset;
     }
-    const calcs = rowEl.querySelectorAll('.calc');
-    calcs[0].textContent = fmt2(volumeOf(r));
-    calcs[1].textContent = fmtMoney(resultOf(r));
-    totalEl.textContent = fmtMoney(total());
-    document.getElementById('btnQR').disabled = total() <= 0;
-    document.getElementById('printTotal').textContent = fmtVND(total());
-    saveRows();
+  }
 
-    // Auto-advance: when 2 digits typed, jump to next input
-    const digitCount = v.replace(/[^0-9]/g, '').length;
-    if (digitCount >= 2) {
-      if (t.dataset.field === 'c') {
-        // Giá is the last field — auto-create next row and focus its first input
-        const prev = rows[rows.length - 1];
-        const newR = newRow();
-        if (prev) { newR.multiplier = prev.multiplier; newR.c = prev.c; }
-        rows.push(newR);
-        render();
-        requestAnimationFrame(() => {
-          const inputs = rowsEl.querySelectorAll('.row:last-child input');
-          if (inputs.length > 1) inputs[1].focus(); // skip Dày (carried over), land on Rộng
-        });
-      } else {
-        const inputs = Array.from(rowsEl.querySelectorAll('input'));
-        const idx = inputs.indexOf(t);
-        if (idx >= 0 && idx < inputs.length - 1) {
-          inputs[idx + 1].focus();
-          inputs[idx + 1].select?.();
-        }
+  // Update calc cells once (volume reused for both)
+  const vol = volumeOf(r);
+  const calcs = rowEl.querySelectorAll('.calc');
+  calcs[0].textContent = fmt2(vol);
+  calcs[1].textContent = fmtMoney(vol * num(r.c) * 10);
+  refreshTotal();
+  saveRows();
+
+  // Auto-advance: when 2 digits typed, jump to next input
+  const digitCount = v.replace(/\D/g, '').length;
+  if (digitCount < 2) return;
+
+  // Treat "Dài with Giá already filled" the same as finishing Giá:
+  // skip Giá, create next row.
+  const giaFilled = String(r.c ?? '').trim() !== '';
+  if (field === 'c' || (field === 'a' && giaFilled)) {
+    const prev = rows[rows.length - 1];
+    const newR = newRow();
+    if (prev) { newR.multiplier = prev.multiplier; newR.c = prev.c; }
+    rows.push(newR);
+    render();
+    requestAnimationFrame(() => {
+      const inputs = rowsEl.querySelectorAll('.row:last-child input');
+      if (inputs.length > 1) inputs[1].focus();
+    });
+  } else {
+    // Next input is always within the same row (multiplier→b→a→c)
+    const inputs = rowEl.querySelectorAll('input');
+    for (let i = 0; i < inputs.length - 1; i++) {
+      if (inputs[i] === t) {
+        inputs[i + 1].focus();
+        inputs[i + 1].select?.();
+        break;
       }
     }
   }
